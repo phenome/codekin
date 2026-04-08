@@ -12,13 +12,20 @@ Web UI for Claude Code sessions — multi-session support, WebSocket streaming, 
 ## Install
 
 **Prerequisites:**
-- macOS or Linux
-- [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated (`claude` must be in your PATH)
+- macOS, Linux, or Windows
+- For Claude sessions: [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated (`claude` must be in your PATH)
+- For Codex sessions: use the bundled Codex ACP adapter and configure Codex auth in Codekin
 
 **One-liner:**
 
 ```bash
 curl -fsSL codekin.ai/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr https://codekin.ai/install.ps1 -UseBasicParsing | iex
 ```
 
 This will:
@@ -46,7 +53,8 @@ codekin uninstall               # Remove Codekin entirely
 
 ## Features
 
-- **Multi-session terminal** — Open and switch between multiple Claude Code sessions, one per repo
+- **Multi-session terminal** — Open and switch between multiple coding-agent sessions, one per repo
+- **Multiple agent backends** — Use Claude Code natively or Codex through the bundled ACP adapter, with custom ACP agent commands for other compatible runtimes
 - **Agent Joe** — AI orchestrator agent that spawns and manages up to 5 concurrent child sessions, with a dedicated chat UI, welcome screen, and color-coded sidebar status indicators
 - **Git worktrees** — Isolate sessions in dedicated worktree directories, with mid-session creation, auto-enable setting, and session context preservation
 - **Session archive** — Full retrieval and re-activation of archived sessions
@@ -56,7 +64,7 @@ codekin uninstall               # Remove Codekin entirely
 - **Diff viewer** — Side panel showing staged/unstaged file changes with per-file discard support
 - **Command palette** — `Ctrl+K` to quickly search repos, skills, and actions
 - **Approval management** — Persistent approval storage with per-permission revoking, permission mode selector, per-session tool pre-approvals, and `--dangerously-skip-permissions` mode for sandboxed environments
-- **Subscription & API key auth** — Works with both Claude subscription (OAuth) and API key authentication
+- **Subscription & API key auth** — Works with Claude auth plus Codex/ACP authentication flows
 - **Mobile-friendly** — Responsive layout that works on phones and tablets
 - **Markdown browser** — Browse and view `.md` files directly in the UI
 - **AI Workflows** — Scheduled code and repository audits and maintenance, with support for custom workflows defined as Markdown files

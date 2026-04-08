@@ -42,6 +42,7 @@ function renderHook<T>(hookFn: () => T): {
 /* ------------------------------------------------------------------ */
 
 const STORAGE_KEY = 'codekin-settings'
+const DEFAULT_SETTINGS = { token: '', fontSize: 16, theme: 'dark', agentBackend: 'claude', acpCommand: '', acpArgsText: '' }
 
 describe('useSettings', () => {
   beforeEach(() => {
@@ -55,7 +56,7 @@ describe('useSettings', () => {
   describe('initial state (load)', () => {
     it('returns defaults when localStorage is empty', () => {
       const { result, unmount } = renderHook(() => useSettings())
-      expect(result.current.settings).toEqual({ token: '', fontSize: 16, theme: 'dark' })
+      expect(result.current.settings).toEqual(DEFAULT_SETTINGS)
       unmount()
     })
 
@@ -76,7 +77,7 @@ describe('useSettings', () => {
     it('returns defaults on corrupt JSON', () => {
       localStorage.setItem(STORAGE_KEY, 'not valid json{{{')
       const { result, unmount } = renderHook(() => useSettings())
-      expect(result.current.settings).toEqual({ token: '', fontSize: 16, theme: 'dark' })
+      expect(result.current.settings).toEqual(DEFAULT_SETTINGS)
       unmount()
     })
 
@@ -91,6 +92,15 @@ describe('useSettings', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: '', theme: 'blue' }))
       const { result, unmount } = renderHook(() => useSettings())
       expect(result.current.settings.theme).toBe('dark')
+      unmount()
+    })
+
+    it('sanitizes invalid ACP backend settings', () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ agentBackend: 'weird', acpCommand: 42, acpArgsText: true }))
+      const { result, unmount } = renderHook(() => useSettings())
+      expect(result.current.settings.agentBackend).toBe('claude')
+      expect(result.current.settings.acpCommand).toBe('')
+      expect(result.current.settings.acpArgsText).toBe('')
       unmount()
     })
   })
@@ -140,12 +150,15 @@ describe('useSettings', () => {
     it('remounting reads updated values from localStorage (round-trip)', () => {
       const { result: r1, unmount: u1 } = renderHook(() => useSettings())
       act(() => {
-        r1.current.updateSettings({ token: 'round-trip-tok' })
+        r1.current.updateSettings({ token: 'round-trip-tok', agentBackend: 'custom-acp', acpCommand: 'agent', acpArgsText: '--flag' })
       })
       u1()
 
       const { result: r2, unmount: u2 } = renderHook(() => useSettings())
       expect(r2.current.settings.token).toBe('round-trip-tok')
+      expect(r2.current.settings.agentBackend).toBe('custom-acp')
+      expect(r2.current.settings.acpCommand).toBe('agent')
+      expect(r2.current.settings.acpArgsText).toBe('--flag')
       u2()
     })
   })

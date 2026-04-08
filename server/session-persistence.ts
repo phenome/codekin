@@ -19,6 +19,9 @@ export interface PersistedSession {
   id: string
   name: string
   workingDir: string
+  backend?: Session['backend']
+  acpCommand?: string
+  acpArgs?: string[]
   groupDir?: string
   /** Absolute path to the git worktree, if this session uses one. */
   worktreePath?: string
@@ -47,6 +50,9 @@ export class SessionPersistence {
       id: s.id,
       name: s.name,
       workingDir: s.workingDir,
+      backend: s.backend,
+      acpCommand: s.acpCommand,
+      acpArgs: s.acpArgs,
       groupDir: s.groupDir,
       worktreePath: s.worktreePath,
       created: s.created,
@@ -108,6 +114,9 @@ export class SessionPersistence {
           id: s.id,
           name: s.name,
           workingDir,
+          backend: s.backend,
+          acpCommand: s.acpCommand,
+          acpArgs: s.acpArgs,
           groupDir,
           worktreePath,
           created: s.created,

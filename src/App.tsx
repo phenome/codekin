@@ -178,6 +178,24 @@ export default function App() {
     },
   })
 
+  const sessionAgentOptions = useMemo(() => {
+    if (settings.agentBackend === 'codex') {
+      return { backend: 'acp' as const }
+    }
+    if (settings.agentBackend === 'custom-acp') {
+      return {
+        backend: 'acp' as const,
+        acpCommand: settings.acpCommand.trim(),
+        acpArgs: settings.acpArgsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean),
+      }
+    }
+    return { backend: 'claude' as const }
+  }, [settings.agentBackend, settings.acpArgsText, settings.acpCommand])
+
+  const createConfiguredSession = useCallback((name: string, workingDir: string, useWorktree?: boolean, permissionMode?: PermissionMode) => {
+    wsCreateSession(name, workingDir, useWorktree, permissionMode, sessionAgentOptions)
+  }, [sessionAgentOptions, wsCreateSession])
+
   // Wrap setPermissionMode to update the ref synchronously (avoids 1-render lag from useEffect)
   const handlePermissionModeChange = useCallback((mode: PermissionMode) => {
     permissionModeRef.current = mode
@@ -207,7 +225,7 @@ export default function App() {
     joinSession,
     leaveSession,
     clearMessages,
-    wsCreateSession,
+    wsCreateSession: createConfiguredSession,
     removeSession,
     pendingContextRef,
     useWorktreeRef,

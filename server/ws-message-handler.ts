@@ -44,7 +44,14 @@ export function handleWsMessage(msg: WsClientMessage, ctx: WsHandlerContext): vo
         break
       }
 
-      const session = sessions.create(msg.name, msg.workingDir, { model: msg.model, permissionMode: msg.permissionMode, allowedTools: msg.allowedTools })
+      const session = sessions.create(msg.name, msg.workingDir, {
+        model: msg.model,
+        permissionMode: msg.permissionMode,
+        allowedTools: msg.allowedTools,
+        backend: msg.backend,
+        acpCommand: msg.acpCommand,
+        acpArgs: msg.acpArgs,
+      })
       session.clients.add(ws)
       clientSessions.set(ws, session.id)
 
@@ -57,6 +64,7 @@ export function handleWsMessage(msg: WsClientMessage, ctx: WsHandlerContext): vo
               sessionId: session.id,
               sessionName: session.name,
               workingDir: session.workingDir,
+              backend: session.backend,
             })
           } else {
             // Worktree creation failed — fall back to main directory
@@ -66,6 +74,7 @@ export function handleWsMessage(msg: WsClientMessage, ctx: WsHandlerContext): vo
               sessionId: session.id,
               sessionName: session.name,
               workingDir: session.workingDir,
+              backend: session.backend,
             })
           }
           sessions.startClaude(session.id)
@@ -76,6 +85,7 @@ export function handleWsMessage(msg: WsClientMessage, ctx: WsHandlerContext): vo
           sessionId: session.id,
           sessionName: session.name,
           workingDir: session.workingDir,
+          backend: session.backend,
         })
         sessions.startClaude(session.id)
       }
@@ -101,6 +111,7 @@ export function handleWsMessage(msg: WsClientMessage, ctx: WsHandlerContext): vo
           outputBuffer: session.outputHistory.slice(-500),
           model: session.model,
           permissionMode: session.permissionMode,
+          backend: session.backend,
         })
       } else {
         send({ type: 'error', message: 'Session not found' })

@@ -9,7 +9,10 @@
  */
 
 import { existsSync } from 'fs'
+import { fileURLToPath } from 'url'
 import path from 'path'
+import type { AgentProcess } from './agent-process.js'
+import { AcpProcess } from './acp-process.js'
 import { ClaudeProcess } from './claude-process.js'
 import { ApprovalManager } from './approval-manager.js'
 import type { PromptRouter } from './prompt-router.js'
@@ -33,7 +36,7 @@ export interface SessionLifecycleDeps {
   promptRouter: PromptRouter
   exitListeners: Array<(sessionId: string, code: number | null, signal: string | null, willRestart: boolean) => void>
   // Event handler callbacks that remain in SessionManager
-  onSystemInit(cp: ClaudeProcess, session: Session, model: string): void
+  onSystemInit(cp: AgentProcess, session: Session, model: string): void
   onTextEvent(session: Session, sessionId: string, text: string): void
   onThinkingEvent(session: Session, summary: string): void
   onToolOutputEvent(session: Session, content: string, isError: boolean): void
@@ -42,6 +45,15 @@ export interface SessionLifecycleDeps {
   onToolDoneEvent(session: Session, toolName: string, summary: string | undefined): void
   handleClaudeResult(session: Session, sessionId: string, result: string, isError: boolean): void
   buildSessionContext(session: Session): string | null
+}
+
+function resolveBundledCodexAcp(): { command: string; args: string[] } {
+  try {
+    const script = fileURLToPath(import.meta.resolve('@zed-industries/codex-acp/bin/codex-acp.js'))
+    return { command: process.execPath, args: [script] }
+  } catch {
+    return { command: 'codex-acp', args: [] }
+  }
 }
 
 export class SessionLifecycle {
@@ -133,23 +145,36 @@ export class SessionLifecycle {
     } else if (process.env.CLAUDE_PROJECT_DIR) {
       extraEnv.CLAUDE_PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR
     }
-    // When claudeSessionId exists, the session has run before and a JSONL file
-    // exists on disk.  Use --resume (not --session-id) to continue it — --session-id
-    // creates a *new* session and fails with "already in use" if the JSONL exists.
+    // When claudeSessionId exists, the session has run before and the underlying
+    // agent may be able to resume it.
     const resume = !!session.claudeSessionId
 
     // Build comprehensive allowedTools from session-level overrides + registry approvals
     const repoDir = session.groupDir ?? session.workingDir
     const registryPatterns = this.deps.approvalManager.getAllowedToolsForRepo(repoDir)
     const mergedAllowedTools = [...new Set([...(session.allowedTools || []), ...registryPatterns])]
-    const cp = new ClaudeProcess(session.workingDir, {
-      sessionId: session.claudeSessionId || undefined,
-      extraEnv,
-      model: session.model,
-      permissionMode: session.permissionMode,
-      resume,
-      allowedTools: mergedAllowedTools,
-    })
+    const cp: AgentProcess = session.backend === 'acp'
+      ? (() => {
+          const bundled = resolveBundledCodexAcp()
+          return new AcpProcess(session.workingDir, {
+            sessionId: session.claudeSessionId || undefined,
+            extraEnv,
+            model: session.model,
+            permissionMode: session.permissionMode,
+            resume,
+            allowedTools: mergedAllowedTools,
+            acpCommand: session.acpCommand || bundled.command,
+            acpArgs: session.acpCommand ? (session.acpArgs || []) : bundled.args,
+          })
+        })()
+      : new ClaudeProcess(session.workingDir, {
+          sessionId: session.claudeSessionId || undefined,
+          extraEnv,
+          model: session.model,
+          permissionMode: session.permissionMode,
+          resume,
+          allowedTools: mergedAllowedTools,
+        })
 
     this.wireClaudeEvents(cp, session, sessionId)
 
@@ -191,7 +216,7 @@ export class SessionLifecycle {
    * Attach all ClaudeProcess event listeners for a session.
    * Called by startClaude() to keep that method focused on process setup.
    */
-  wireClaudeEvents(cp: ClaudeProcess, session: Session, sessionId: string): void {
+  wireClaudeEvents(cp: AgentProcess, session: Session, sessionId: string): void {
     cp.on('system_init', (model) => this.deps.onSystemInit(cp, session, model))
     cp.on('text', (text) => this.deps.onTextEvent(session, sessionId, text))
     cp.on('thinking', (summary) => this.deps.onThinkingEvent(session, summary))
@@ -227,7 +252,7 @@ export class SessionLifecycle {
    * Uses evaluateRestart() for the restart decision, keeping this method focused
    * on state updates, listener notification, and message broadcasting.
    */
-  handleClaudeExit(exitedProcess: ClaudeProcess, session: Session, sessionId: string, code: number | null, signal: string | null): void {
+  handleClaudeExit(exitedProcess: AgentProcess, session: Session, sessionId: string, code: number | null, signal: string | null): void {
     // Guard: ignore exit events from stale processes that were replaced by a
     // new startClaude() call.  Without this, the old process's exit handler
     // would null out session.claudeProcess (which now points to the NEW

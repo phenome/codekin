@@ -46,17 +46,20 @@ ensure_node() {
 }
 
 # ---------------------------------------------------------------------------
-# 2. Check Claude Code CLI
+# 2. Optional agent runtimes
 # ---------------------------------------------------------------------------
 
-check_claude() {
-  if ! command -v claude &>/dev/null; then
+check_agents() {
+  if command -v claude &>/dev/null; then
+    info "Claude Code CLI found ($(claude --version 2>/dev/null | head -1 || echo 'unknown version'))."
+  else
     warn "Claude Code CLI not found."
     info "Install it with: npm install -g @anthropic-ai/claude-code"
-    info "Then run 'claude' once to authenticate, and re-run this installer."
-    exit 1
+    info "Claude sessions will stay unavailable until Claude Code is installed and authenticated."
   fi
-  info "Claude Code CLI found ($(claude --version 2>/dev/null | head -1 || echo 'unknown version'))."
+
+  info "Codex support is available through the bundled ACP adapter."
+  info "Configure the Codex backend in Codekin after installation to use it."
 }
 
 # ---------------------------------------------------------------------------
@@ -130,7 +133,7 @@ echo "  ================="
 echo ""
 
 ensure_node
-check_claude
+check_agents
 check_github
 install_codekin
 run_setup
