@@ -36,7 +36,7 @@ function summarizeText(text: string, max = 80): string {
   return singleLine.length > max ? `${singleLine.slice(0, max - 1)}…` : singleLine
 }
 
-function mapToolName(kind: acp.ToolKind | undefined, rawInput: Record<string, unknown>, title: string): string {
+function mapToolName(kind: acp.ToolKind | undefined, title: string): string {
   switch (kind) {
     case 'read': return 'Read'
     case 'edit':
@@ -48,7 +48,7 @@ function mapToolName(kind: acp.ToolKind | undefined, rawInput: Record<string, un
     case 'think': return 'Task'
     case 'switch_mode': return 'EnterPlanMode'
     default:
-      return typeof rawInput.command === 'string' ? 'Bash' : (title || 'ACPTool')
+      return title || 'ACPTool'
   }
 }
 
@@ -222,7 +222,7 @@ export class AcpProcess extends EventEmitter implements AgentProcess, acp.Client
     const requestId = randomUUID()
     const toolInput = buildToolInput(params.toolCall)
     const title = params.toolCall.title || 'ACP tool'
-    const toolName = mapToolName(params.toolCall.kind ?? undefined, toolInput, title)
+    const toolName = mapToolName(params.toolCall.kind ?? undefined, title)
     const question = `Allow ${title}?`
     return await new Promise<acp.RequestPermissionResponse>((resolve) => {
       this.pendingPrompts.set(requestId, {
@@ -249,7 +249,7 @@ export class AcpProcess extends EventEmitter implements AgentProcess, acp.Client
         break
       case 'tool_call': {
         const toolInput = buildToolInput(update)
-        const toolName = mapToolName(update.kind, toolInput, update.title)
+        const toolName = mapToolName(update.kind, update.title)
         this.toolCalls.set(update.toolCallId, { title: update.title, toolName, input: toolInput })
         this.emit('tool_active', toolName, summarizeText(JSON.stringify(toolInput)) || update.title)
         break
@@ -258,7 +258,7 @@ export class AcpProcess extends EventEmitter implements AgentProcess, acp.Client
         const existing = this.toolCalls.get(update.toolCallId)
         const toolInput = update.rawInput === undefined ? (existing?.input || {}) : buildToolInput(update)
         const title = typeof update.title === 'string' ? update.title : (existing?.title || 'ACP tool')
-        const toolName = mapToolName(update.kind || (toolInput.kind as acp.ToolKind | undefined), toolInput, title)
+        const toolName = mapToolName(update.kind || (toolInput.kind as acp.ToolKind | undefined), title)
         this.toolCalls.set(update.toolCallId, { title, toolName, input: toolInput })
         const { text, image } = collectToolContent(update.content)
         if (image) this.emit('image', image.base64, image.mediaType)

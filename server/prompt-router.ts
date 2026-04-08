@@ -243,10 +243,10 @@ export class PromptRouter {
       // Dismiss prompt on all other clients viewing this session
       this.deps.broadcast(session, { type: 'prompt_dismiss', requestId: pending.requestId })
 
-      if (pending.toolName === 'AskUserQuestion' && !session.claudeProcess?.sendPromptResponse) {
-        this.handleAskUserQuestion(session, pending, value)
-      } else if (session.claudeProcess?.sendPromptResponse) {
+      if (session.claudeProcess?.sendPromptResponse) {
         session.claudeProcess.sendPromptResponse(pending.requestId, value)
+      } else if (pending.toolName === 'AskUserQuestion') {
+        this.handleAskUserQuestion(session, pending, value)
       } else {
         this.sendControlResponseForRequest(session, pending, value)
       }
