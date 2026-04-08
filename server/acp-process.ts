@@ -106,6 +106,13 @@ function normalizeSignal(signal: NodeJS.Signals | null): string | null {
   return signal ?? null
 }
 
+/**
+ * ACP client-side process wrapper used for Codex and other ACP-compatible agents.
+ *
+ * Spawns an ACP agent subprocess, translates ACP session/tool events into the
+ * existing Codekin event stream, and exposes filesystem/terminal capabilities
+ * so ACP agents can edit the local workspace.
+ */
 export class AcpProcess extends EventEmitter implements AgentProcess, acp.Client {
   private proc: ChildProcess | null = null
   private connection: acp.ClientSideConnection | null = null

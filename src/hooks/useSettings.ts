@@ -1,5 +1,5 @@
 /**
- * Persists user settings (auth token, theme, agent backend) to localStorage.
+ * Persists user settings (auth token, font size, theme, agent backend) to localStorage.
  *
  * On load, restores the saved token but always uses the current default
  * font size so new defaults take effect without migration.
