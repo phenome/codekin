@@ -7,7 +7,7 @@
  */
 
 import type { WebSocket } from 'ws'
-import type { ClaudeProcess } from './claude-process.js'
+import type { AgentProcess, SessionBackend } from './agent-process.js'
 import type { PlanManager } from './plan-manager.js'
 
 /**
@@ -34,6 +34,9 @@ export interface Session {
   id: string
   name: string
   workingDir: string
+  backend?: SessionBackend
+  acpCommand?: string
+  acpArgs?: string[]
   /** Optional grouping key for the UI. When set, sessions are grouped by this
    *  instead of workingDir (e.g. webhook sessions group under the original repo). */
   groupDir?: string
@@ -41,13 +44,13 @@ export interface Session {
   worktreePath?: string
   created: string
   source: 'manual' | 'webhook' | 'workflow' | 'stepflow' | 'orchestrator' | 'agent'
-  /** The spawned Claude CLI process, or null if not running. */
-  claudeProcess: ClaudeProcess | null
+  /** The spawned agent process, or null if not running. */
+  claudeProcess: AgentProcess | null
   /** All browser clients currently viewing this session. */
   clients: Set<WebSocket>
   /** Rolling buffer of messages for replay when a new client joins. */
   outputHistory: WsServerMessage[]
-  /** Claude CLI's internal session ID, used for --session-id resume across restarts. */
+  /** Agent-specific session ID, used to resume ACP or Claude conversations across restarts. */
   claudeSessionId: string | null
   /** Preferred model to pass via --model flag (e.g. 'claude-opus-4-6'). Defaults to Claude's default. */
   model?: string
@@ -111,6 +114,7 @@ export interface SessionInfo {
   /** True while Claude is actively processing a user request (between input and result). */
   isProcessing: boolean
   workingDir: string
+  backend?: SessionBackend
   groupDir?: string
   /** Absolute path to the git worktree directory, if this session uses one. */
   worktreePath?: string
@@ -246,8 +250,8 @@ export interface TaskItem {
 /** Messages sent from the server to browser clients over WebSocket. */
 export type WsServerMessage =
   | { type: 'connected'; connectionId: string; claudeAvailable: boolean; claudeVersion: string; apiKeySet: boolean }
-  | { type: 'session_created'; sessionId: string; sessionName: string; workingDir: string }
-  | { type: 'session_joined'; sessionId: string; sessionName: string; workingDir: string; active: boolean; outputBuffer: WsServerMessage[]; model?: string; permissionMode?: PermissionMode }
+  | { type: 'session_created'; sessionId: string; sessionName: string; workingDir: string; backend?: SessionBackend }
+  | { type: 'session_joined'; sessionId: string; sessionName: string; workingDir: string; active: boolean; outputBuffer: WsServerMessage[]; model?: string; permissionMode?: PermissionMode; backend?: SessionBackend }
   | { type: 'session_left' }
   | { type: 'session_deleted'; message: string }
   | { type: 'claude_started'; sessionId: string }
@@ -280,7 +284,7 @@ export type WsServerMessage =
 /** Messages sent from browser clients to the server over WebSocket. */
 export type WsClientMessage =
   | { type: 'auth'; token: string }
-  | { type: 'create_session'; name: string; workingDir: string; model?: string; useWorktree?: boolean; permissionMode?: PermissionMode; allowedTools?: string[] }
+  | { type: 'create_session'; name: string; workingDir: string; model?: string; useWorktree?: boolean; permissionMode?: PermissionMode; allowedTools?: string[]; backend?: SessionBackend; acpCommand?: string; acpArgs?: string[] }
   | { type: 'join_session'; sessionId: string }
   | { type: 'leave_session' }
   | { type: 'start_claude'; options?: Record<string, unknown> }

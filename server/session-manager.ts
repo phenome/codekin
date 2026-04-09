@@ -26,7 +26,7 @@ import { homedir } from 'os'
 import path from 'path'
 import { promisify } from 'util'
 import type { WebSocket } from 'ws'
-import { ClaudeProcess } from './claude-process.js'
+import type { AgentProcess } from './agent-process.js'
 import { PlanManager } from './plan-manager.js'
 import { SessionArchive } from './session-archive.js'
 import type { DiffFileStatus, DiffScope, Session, SessionInfo, TaskItem, WsServerMessage } from './types.js'
@@ -73,6 +73,9 @@ export interface CreateSessionOptions {
   source?: 'manual' | 'webhook' | 'workflow' | 'stepflow' | 'orchestrator' | 'agent'
   id?: string
   groupDir?: string
+  backend?: Session['backend']
+  acpCommand?: string
+  acpArgs?: string[]
   model?: string
   /** When true, create a git worktree as a sibling of workingDir and run Claude there. */
   useWorktree?: boolean
@@ -269,6 +272,9 @@ export class SessionManager {
       id,
       name,
       workingDir,
+      backend: options?.backend,
+      acpCommand: options?.acpCommand,
+      acpArgs: options?.acpArgs,
       groupDir: options?.groupDir,
       created: new Date().toISOString(),
       source: options?.source ?? 'manual',
@@ -651,6 +657,7 @@ export class SessionManager {
         active: s.claudeProcess?.isAlive() ?? false,
         isProcessing: s.isProcessing,
         workingDir: s.workingDir,
+        backend: s.backend,
         groupDir: s.groupDir,
         worktreePath: s.worktreePath,
         connectedClients: s.clients.size,
@@ -669,6 +676,7 @@ export class SessionManager {
         active: s.claudeProcess?.isAlive() ?? false,
         isProcessing: s.isProcessing,
         workingDir: s.workingDir,
+        backend: s.backend,
         groupDir: s.groupDir,
         worktreePath: s.worktreePath,
         connectedClients: s.clients.size,
@@ -885,7 +893,7 @@ export class SessionManager {
     })
   }
 
-  private onSystemInit(cp: ClaudeProcess, session: Session, model: string): void {
+  private onSystemInit(cp: AgentProcess, session: Session, model: string): void {
     session.claudeSessionId = cp.getSessionId()
     // Only show model message on first init or when model actually changes
     if (!session._lastReportedModel || session._lastReportedModel !== model) {

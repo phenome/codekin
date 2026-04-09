@@ -273,6 +273,8 @@ function serviceStatusMac() {
 
 const SYSTEMD_SERVICE_DIR = join(homedir(), '.config', 'systemd', 'user')
 const SYSTEMD_SERVICE_FILE = join(SYSTEMD_SERVICE_DIR, 'codekin.service')
+const WINDOWS_TASK_NAME = 'ai.codekin'
+const WINDOWS_SERVICE_CMD = join(CONFIG_DIR, 'service.cmd')
 
 function buildSystemdUnit() {
   const { script, runner } = findServerScript()
@@ -334,6 +336,51 @@ function serviceStatusLinux() {
 }
 
 // ---------------------------------------------------------------------------
+// Service: Windows (Task Scheduler)
+// ---------------------------------------------------------------------------
+
+function buildWindowsServiceCommand() {
+  return `@echo off\r\n\"${process.execPath}\" \"${fileURLToPath(import.meta.url)}\" start\r\n`
+}
+
+function serviceInstallWindows() {
+  ensureConfigDir()
+  mkdirSync(join(homedir(), '.codekin'), { recursive: true })
+  writeFileSync(WINDOWS_SERVICE_CMD, buildWindowsServiceCommand())
+  const create = spawnSync('schtasks.exe', ['/Create', '/F', '/SC', 'ONLOGON', '/TN', WINDOWS_TASK_NAME, '/TR', WINDOWS_SERVICE_CMD], { stdio: 'inherit' })
+  if (create.status !== 0) {
+    console.error('Failed to create Windows scheduled task for Codekin.')
+    process.exit(1)
+  }
+  spawnSync('schtasks.exe', ['/Run', '/TN', WINDOWS_TASK_NAME], { stdio: 'inherit' })
+  console.log('Codekin service installed and started.')
+  printAccessUrl()
+}
+
+function serviceUninstallWindows() {
+  spawnSync('schtasks.exe', ['/Delete', '/F', '/TN', WINDOWS_TASK_NAME], { stdio: 'inherit' })
+  if (existsSync(WINDOWS_SERVICE_CMD)) {
+    rmSync(WINDOWS_SERVICE_CMD, { force: true })
+  }
+  console.log('Codekin service removed.')
+}
+
+function serviceStatusWindows() {
+  const result = spawnSync('schtasks.exe', ['/Query', '/TN', WINDOWS_TASK_NAME, '/FO', 'LIST', '/V'], { encoding: 'utf-8' })
+  if (result.status !== 0) {
+    console.log('Codekin service is not running.')
+    return
+  }
+  const statusLine = result.stdout.split(/\r?\n/).find(line => line.startsWith('Status:'))
+  if (statusLine) {
+    console.log(`Codekin service status: ${statusLine.replace(/^Status:\s*/, '')}`)
+  } else {
+    console.log('Codekin service is installed.')
+  }
+  printAccessUrl()
+}
+
+// ---------------------------------------------------------------------------
 // Service dispatch
 // ---------------------------------------------------------------------------
 
@@ -347,6 +394,10 @@ function serviceDispatch(action) {
     if (action === 'install') serviceInstallLinux()
     else if (action === 'uninstall') serviceUninstallLinux()
     else if (action === 'status') serviceStatusLinux()
+  } else if (os === 'win32') {
+    if (action === 'install') serviceInstallWindows()
+    else if (action === 'uninstall') serviceUninstallWindows()
+    else if (action === 'status') serviceStatusWindows()
   } else {
     console.error(`Service management is not supported on ${os}. Use 'codekin start' for foreground mode.`)
     process.exit(1)

@@ -1,5 +1,5 @@
 /**
- * Persists user settings (auth token, font size) to localStorage.
+ * Persists user settings (auth token, font size, theme, agent backend) to localStorage.
  *
  * On load, restores the saved token but always uses the current default
  * font size so new defaults take effect without migration.
@@ -14,6 +14,9 @@ const defaults: Settings = {
   token: '',
   fontSize: 16,
   theme: 'dark',
+  agentBackend: 'claude',
+  acpCommand: '',
+  acpArgsText: '',
 }
 
 function load(): Settings {
@@ -24,6 +27,9 @@ function load(): Settings {
       ...defaults,
       token: saved?.token ?? defaults.token,
       theme: saved?.theme === 'light' ? 'light' : 'dark',
+      agentBackend: saved?.agentBackend === 'codex' || saved?.agentBackend === 'custom-acp' ? saved.agentBackend : 'claude',
+      acpCommand: typeof saved?.acpCommand === 'string' ? saved.acpCommand : defaults.acpCommand,
+      acpArgsText: typeof saved?.acpArgsText === 'string' ? saved.acpArgsText : defaults.acpArgsText,
     }
 
     // Check URL for ?token= parameter (e.g. shared invite links)

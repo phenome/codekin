@@ -11,7 +11,7 @@
 
 import { randomUUID } from 'crypto'
 import { ApprovalManager } from './approval-manager.js'
-import type { ClaudeProcess } from './claude-process.js'
+import type { AgentProcess } from './agent-process.js'
 import type { PromptQuestion, Session, WsServerMessage } from './types.js'
 
 /** Dependencies injected by SessionManager so PromptRouter can interact with session state. */
@@ -105,7 +105,7 @@ export class PromptRouter {
       ...(questions ? { questions } : {}),
     }
     if (requestId) {
-      session.pendingControlRequests.set(requestId, { requestId, toolName: 'AskUserQuestion', toolInput: toolInput || {}, promptMsg })
+      session.pendingControlRequests.set(requestId, { requestId, toolName: toolName || 'AskUserQuestion', toolInput: toolInput || {}, promptMsg })
     }
     this.deps.broadcast(session, promptMsg)
 
@@ -115,9 +115,9 @@ export class PromptRouter {
     }
   }
 
-  /** Handle a Claude process 'control_request' event. */
+  /** Handle an agent-process control_request event. */
   onControlRequestEvent(
-    cp: ClaudeProcess,
+    cp: AgentProcess,
     session: Session,
     sessionId: string,
     requestId: string,
@@ -243,7 +243,9 @@ export class PromptRouter {
       // Dismiss prompt on all other clients viewing this session
       this.deps.broadcast(session, { type: 'prompt_dismiss', requestId: pending.requestId })
 
-      if (pending.toolName === 'AskUserQuestion') {
+      if (session.claudeProcess?.sendPromptResponse) {
+        session.claudeProcess.sendPromptResponse(pending.requestId, value)
+      } else if (pending.toolName === 'AskUserQuestion') {
         this.handleAskUserQuestion(session, pending, value)
       } else {
         this.sendControlResponseForRequest(session, pending, value)

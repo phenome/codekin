@@ -2,7 +2,7 @@
  * Modal settings dialog for general configuration.
  *
  * Organized into logical sections: Authentication, Preferences, Integrations.
- * Handles auth token, theme, retention, repos path, and webhook config.
+ * Handles auth token, agent runtime, theme, retention, repos path, and webhook config.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -198,6 +198,68 @@ export function Settings({ open, onClose, settings, onUpdate, isMobile = false, 
             <div className="space-y-5">
 
               {/* ─ Agent Name ─ */}
+              <div>
+                <label className="mb-1.5 block text-[15px] text-neutral-4">
+                  <span className="flex items-center gap-1.5">
+                    <IconRobot size={14} className="text-neutral-5" />
+                    Agent Runtime
+                  </span>
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { id: 'claude', label: 'Claude Code', description: 'Use the existing native Claude Code integration.' },
+                    { id: 'codex', label: 'Codex via ACP adapter', description: 'Use the bundled codex-acp adapter for Codex-compatible sessions.' },
+                    { id: 'custom-acp', label: 'Custom ACP agent', description: 'Launch any ACP-compatible agent command.' },
+                  ].map(option => (
+                    <label key={option.id} className={`block rounded border px-3 py-2 transition-colors ${settings.agentBackend === option.id ? 'border-primary-7 bg-primary-10/40' : 'border-neutral-9 bg-neutral-10 hover:border-neutral-8'}`}>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          name="agent-backend"
+                          checked={settings.agentBackend === option.id}
+                          onChange={() => onUpdate({ agentBackend: option.id as SettingsType['agentBackend'] })}
+                          className="mt-1 h-4 w-4 accent-primary-7"
+                        />
+                        <div>
+                          <div className="text-[15px] text-neutral-3">{option.label}</div>
+                          <div className="text-[13px] text-neutral-6">{option.description}</div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                {settings.agentBackend === 'custom-acp' && (
+                  <div className="mt-3 space-y-3 rounded border border-neutral-9/50 bg-neutral-10/40 p-3">
+                    <div>
+                      <label className="mb-1 block text-[13px] text-neutral-5 uppercase tracking-wide">ACP command</label>
+                      <input
+                        type="text"
+                        value={settings.acpCommand}
+                        onChange={e => onUpdate({ acpCommand: e.target.value })}
+                        placeholder="my-acp-agent"
+                        className="w-full rounded border border-neutral-9 bg-neutral-10 px-3 py-2 text-[15px] text-neutral-2 outline-none focus:border-primary-7"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[13px] text-neutral-5 uppercase tracking-wide">Arguments</label>
+                      <textarea
+                        value={settings.acpArgsText}
+                        onChange={e => onUpdate({ acpArgsText: e.target.value })}
+                        placeholder="One argument per line"
+                        rows={3}
+                        className="w-full rounded border border-neutral-9 bg-neutral-10 px-3 py-2 text-[15px] text-neutral-2 outline-none focus:border-primary-7"
+                      />
+                      <p className="mt-1 text-[13px] text-neutral-6">Each non-empty line is passed as one argument when the ACP agent starts.</p>
+                    </div>
+                  </div>
+                )}
+
+                <p className="mt-2 text-[13px] text-neutral-6">New sessions use the selected backend. Existing sessions keep the agent they were created with.</p>
+              </div>
+
+              <div className="border-t border-neutral-9/40" />
+
               <div>
                 <label className="mb-1.5 block text-[15px] text-neutral-4">
                   <span className="flex items-center gap-1.5">
@@ -502,11 +564,11 @@ export function Settings({ open, onClose, settings, onUpdate, isMobile = false, 
                 Cancel
               </button>
             )}
-            <button
-              onClick={handleSave}
-              disabled={!tokenInput.trim()}
-              className="rounded bg-primary-8 px-4 py-2 text-[15px] font-medium text-neutral-1 hover:bg-primary-7 disabled:opacity-50"
-            >
+              <button
+                onClick={handleSave}
+                disabled={!tokenInput.trim() || (settings.agentBackend === 'custom-acp' && !settings.acpCommand.trim())}
+                className="rounded bg-primary-8 px-4 py-2 text-[15px] font-medium text-neutral-1 hover:bg-primary-7 disabled:opacity-50"
+              >
               Save
             </button>
           </div>

@@ -49,6 +49,7 @@ export interface RepoManifest {
  * Keep in sync with server/types.ts PermissionMode.
  */
 export type PermissionMode = 'default' | 'acceptEdits' | 'plan' | 'bypassPermissions' | 'dangerouslySkipPermissions'
+export type SessionBackend = 'claude' | 'acp'
 
 /** Permission mode metadata for the UI selector. */
 export const PERMISSION_MODES: { id: PermissionMode; label: string; description: string; icon: string; dangerous?: boolean }[] = [
@@ -69,6 +70,7 @@ export interface Session {
   /** Whether Claude is actively processing a user request in this session. */
   isProcessing?: boolean
   workingDir: string
+  backend?: SessionBackend
   /** Optional grouping key for the UI (e.g. webhook sessions group under the original repo). */
   groupDir?: string
   /** Absolute path to the git worktree, if this session uses one. */
@@ -95,7 +97,7 @@ export interface Session {
  */
 export type WsClientMessage =
   | { type: 'auth'; token: string }
-  | { type: 'create_session'; name: string; workingDir: string; model?: string; useWorktree?: boolean; permissionMode?: PermissionMode; allowedTools?: string[] }
+  | { type: 'create_session'; name: string; workingDir: string; model?: string; useWorktree?: boolean; permissionMode?: PermissionMode; allowedTools?: string[]; backend?: SessionBackend; acpCommand?: string; acpArgs?: string[] }
   | { type: 'join_session'; sessionId: string }
   | { type: 'leave_session' }
   | { type: 'start_claude'; options?: Record<string, unknown> }
@@ -140,8 +142,8 @@ export interface TaskItem {
  */
 export type WsServerMessage =
   | { type: 'connected'; connectionId: string; claudeAvailable: boolean; claudeVersion: string; apiKeySet: boolean }
-  | { type: 'session_created'; sessionId: string; sessionName: string; workingDir: string }
-  | { type: 'session_joined'; sessionId: string; sessionName: string; workingDir: string; active: boolean; outputBuffer: WsServerMessage[]; model?: string; permissionMode?: PermissionMode }
+  | { type: 'session_created'; sessionId: string; sessionName: string; workingDir: string; backend?: SessionBackend }
+  | { type: 'session_joined'; sessionId: string; sessionName: string; workingDir: string; active: boolean; outputBuffer: WsServerMessage[]; model?: string; permissionMode?: PermissionMode; backend?: SessionBackend }
   | { type: 'session_left' }
   | { type: 'session_deleted'; message: string }
   | { type: 'claude_started'; sessionId: string }
@@ -250,6 +252,9 @@ export interface Settings {
   token: string
   fontSize: number
   theme: 'dark' | 'light'
+  agentBackend: 'claude' | 'codex' | 'custom-acp'
+  acpCommand: string
+  acpArgsText: string
 }
 
 /** Docs picker state passed through LeftSidebar → RepoSection. */
@@ -269,4 +274,3 @@ export interface MobileProps {
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
-
